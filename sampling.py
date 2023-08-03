@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+import uuid
+
 
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+
 
 
 def convert_index_to_coordinates(i: int, dimensions: np.ndarray) -> np.ndarray:
@@ -83,141 +86,243 @@ def generate_random_spin_config(n: int) -> np.ndarray:
     return 2*(np.random.random(n) > 0.5*np.ones(n)) - np.ones(n)
 
 
+
+
+
+def init_square_grid_nodes(dimensions: list=None) -> dict:
+    """_summary_
+
+    Args:
+        dimensions (list, optional): _description_. Defaults to None.
+
+    Returns:
+        dict: _description_
+    """
+    nodes = {}
+    n = np.product(dimensions)
+    for i in range(n):
+        nodes[i] = {
+            "position":list((convert_index_to_coordinates(i, dimensions))),
+            "spin":1.0, # default is all +1.
+            "B":0.0 # default is no external field
+        }
+    return nodes
+
+
+
+
+
+
+
+def init_square_grid_internal_edges(
+        nodes: dict=None,
+        distance_threshold: float=1.01
+    ) -> dict:
+    """_summary_
+
+    Args:
+        nodes (dict, optional): _description_. Defaults to None.
+        distance_threshold (float, optional): _description_. Defaults to 1.01.
+
+    Returns:
+        dict: _description_
+    """
+    edges = {}
+    for i in nodes:
+        for j in nodes:
+            if i < j:
+                xyz_i = np.array(nodes[i]["position"])
+                xyz_j = np.array(nodes[j]["position"])
+                distance = np.linalg.norm(xyz_i - xyz_j)
+                if distance < distance_threshold:
+                    edges[(i,j)] = {
+                        "weight":1.0, # default is 1.0
+                        "periodic_boundary_edge":False  # internal edge
+                    }
+    return edges
+
+def add_square_grid_periodic_boundary_edges(
+        dimensions: list=None,
+        nodes: dict=None,
+        edges: dict=None
+    ) -> dict:
+    """_summary_
+
+    Args:
+        dimensions (list, optional): _description_. Defaults to None.
+        nodes (dict, optional): _description_. Defaults to None.
+        edges (dict, optional): _description_. Defaults to None.
+
+    Returns:
+        dict: _description_
+    """
+
+
+    for i in nodes:
+        i_x = nodes[i]["position"][0]
+        i_y = nodes[i]["position"][1]
+        i_z = nodes[i]["position"][2]
+        if i_x == 0: 
+            for j in nodes:
+                if i < j:
+                    if nodes[j]["position"][0] == dimensions[0] - 1:
+                        if nodes[j]["position"][1] == i_y:
+                            if nodes[j]["position"][2] == i_z:
+                                if (i, j) not in edges:
+                                    edges[(i,j)]={
+                                        "weight":1.0, # init to 1
+                                        "periodic_boundary_edge":True
+                                    }
+                                    break
+        if i_x == dimensions[0] - 1: 
+            for j in nodes:
+                if i < j:
+                    if nodes[j]["position"][0] == 0:
+                        if nodes[j]["position"][1] == i_y:
+                            if nodes[j]["position"][2] == i_z:
+                                if (i, j) not in edges:
+                                    edges[(i,j)]={
+                                        "weight":1.0, # init to 1
+                                        "periodic_boundary_edge":True
+                                    }
+                                    break
+        if i_y == 0:
+            for j in nodes:
+                if i < j:
+                    if nodes[j]["position"][0] == i_x:
+                        if nodes[j]["position"][1] == dimensions[1] - 1:
+                            if nodes[j]["position"][2] == i_z:
+                                if (i, j) not in edges:
+                                    edges[(i,j)]={
+                                        "weight":1.0, # init to 1
+                                        "periodic_boundary_edge":True
+                                    }
+                                    break
+        if i_y == dimensions[1] - 1:
+            for j in nodes:
+                if i < j:
+                    if nodes[j]["position"][0] == i_x:
+                        if nodes[j]["position"][1] == 0:
+                            if nodes[j]["position"][2] == i_z:
+                                if (i, j) not in edges:
+                                    edges[(i,j)]={
+                                        "weight":1.0, # init to 1
+                                        "periodic_boundary_edge":True
+                                    }
+                                    break
+        if i_z == 0:
+            for j in nodes:
+                if i < j:
+                    if nodes[j]["position"][0] == i_x:
+                        if nodes[j]["position"][1] == i_y:
+                            if nodes[j]["position"][2] == i_z:
+                                if (i, j) not in edges:
+                                    edges[(i,j)]={
+                                        "weight":1.0, # init to 1
+                                        "periodic_boundary_edge":True
+                                    }
+                                    break
+        if i_z == dimensions[2] - 1:
+            for j in nodes:
+                if i < j:
+                    if nodes[j]["position"][0] == i_x:
+                        if nodes[j]["position"][1] == i_y:
+                            if nodes[j]["position"][2] == i_z:
+                                if (i, j) not in edges:
+                                    edges[(i,j)]={
+                                        "weight":1.0, # init to 1
+                                        "periodic_boundary_edge":True
+                                    }
+                                    break
+    return edges
+
+
+
+
+
+
+
 class Graph(nx.Graph):
     """Extends the networkX Graph class
     DESCRIPTION: _summary_
     """
 
-    def __init__(self, dimensions: np.ndarray=None):
+    def __init__(
+            self, 
+            nx_graph: nx.Graph=None,
+            nodes: dict=None,
+            edges: dict=None,
+            name: str="default_name",
+            user_defined_uuid: str=None
+        ):
         """_summary_
 
         Args:
-            dimensions (np.ndarray, optional): _description_. Defaults to None.
+            nx_graph (nx.Graph, optional): _description_. Defaults to None.
+            nodes (dict, optional): _description_. Defaults to None.
+            edges (dict, optional): _description_. Defaults to None.
+            name (str, optional): _description_. Defaults to "default_name".
+            uuid (str, optional): _description_. Defaults to None.
         """
-
         # initialize an empty NetworkX graph:
-        super(Graph, self).__init__()
+        super(Graph, self).__init__(nx_graph)
+        self.load_nodes(nodes)
+        self.load_edges(edges)
+        self.name = name
+        if user_defined_uuid is None:
+            self.uuid = str(uuid.uuid4())
+        else:
+            self.uuid = user_defined_uuid
 
-        if dimensions is not None:
-            self.dimensions = dimensions
-            n = np.product(dimensions)
-            for i in range(n):
-                self.add_node(
-                    i,
-                    position=convert_index_to_coordinates(
-                        i, dimensions),
-                    spin=1.0,  # default is all +1.
-                    B=0.0,  # default is no external field
-                )
 
-    def init_edges(self, distance_threshold: float=1.01, periodic_boundary: bool=True) -> None:
-        """WARNING! Only working for square grid lattice now!
+
+    def load_nodes(self, nodes: dict=None) -> None:
+        """_summary_
 
         Args:
-            distance_threshold (float, optional): _description_. Defaults to 1.01.
-            periodic_boundary (bool, optional): _description_. Defaults to True.
+            nodes (dict, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
         """
+        if nodes == None:
+            return None
+        else:
+            for i in nodes:
+                self.add_node(
+                    i,
+                    position=nodes[i]["position"],
+                    spin=nodes[i]["spin"],
+                    B=nodes[i]["B"]
+                )
+            return None
 
-        for i in self.nodes():
-            for j in self.nodes():
-                if i < j:
-                    xyz_i = self.nodes[i]["position"]
-                    xyz_j = self.nodes[j]["position"]
-                    distance = np.linalg.norm(xyz_i - xyz_j)
-                    if distance < distance_threshold:
-                        self.add_edge(i, j,
-                                      weight=1.0, # default is 1.0
-                                      periodic_boundary_edge=False  # internal edge
-                                      )
-        if periodic_boundary:
-            self.add_periodic_boundary_edges()
 
-    def add_periodic_boundary_edges(self) -> None:
-        """WARNING! Only works for square grid lattice right now!  TODO: generalize!
-           WARNING! Also expecting the dimensions to be integer and the node positions to correspond to those integers!
-        DESCRIPTION: _summary_
-        OUTPUTS:     Nothing
-        RETURNS:     Nothing (edge list is updated)
-        EXCEPTIONS:  N/A
-        LIMITATIONS: _description_
+    def load_edges(self, edges: dict=None) -> None:
+        """_summary_
+
+        Args:
+            edges (dict, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
         """
-        for i in self.nodes():
-            i_x = self.nodes[i]["position"][0]
-            i_y = self.nodes[i]["position"][1]
-            i_z = self.nodes[i]["position"][2]
-            if i_x == 0: 
-                for j in self.nodes():
-                    if i < j:
-                        if self.nodes[j]["position"][0] == self.dimensions[0] - 1:
-                            if self.nodes[j]["position"][1] == i_y:
-                                if self.nodes[j]["position"][2] == i_z:
-                                    if (i, j) not in self.edges():
-                                        self.add_edge(i, j,
-                                                      weight=1.0,  # init to 1
-                                                      periodic_boundary_edge=True
-                                                      )
-                                        break
-            if i_x == self.dimensions[0] - 1: 
-                for j in self.nodes():
-                    if i < j:
-                        if self.nodes[j]["position"][0] == 0:
-                            if self.nodes[j]["position"][1] == i_y:
-                                if self.nodes[j]["position"][2] == i_z:
-                                    if (i, j) not in self.edges():
-                                        self.add_edge(i, j,
-                                                      weight=1.0,  # init to 1
-                                                      periodic_boundary_edge=True
-                                                      )
-                                        break
-            if i_y == 0:
-                for j in self.nodes():
-                    if i < j:
-                        if self.nodes[j]["position"][0] == i_x:
-                            if self.nodes[j]["position"][1] == self.dimensions[1] - 1:
-                                if self.nodes[j]["position"][2] == i_z:
-                                    if (i, j) not in self.edges():
-                                        self.add_edge(i, j,
-                                                      weight=1.0,  # init to 1,
-                                                      periodic_boundary_edge=True
-                                                      )
-                                        break
-            if i_y == self.dimensions[1] - 1:
-                for j in self.nodes():
-                    if i < j:
-                        if self.nodes[j]["position"][0] == i_x:
-                            if self.nodes[j]["position"][1] == 0:
-                                if self.nodes[j]["position"][2] == i_z:
-                                    if (i, j) not in self.edges():
-                                        self.add_edge(i, j,
-                                                      weight=1.0,  # init to 1
-                                                      periodic_boundary_edge=True
-                                                      )
-                                        break
-            if i_z == 0:
-                for j in self.nodes():
-                    if i < j:
-                        if self.nodes[j]["position"][0] == i_x:
-                            if self.nodes[j]["position"][1] == i_y:
-                                if self.nodes[j]["position"][2] == i_z:
-                                    if (i, j) not in self.edges():
-                                        self.add_edge(i, j,
-                                                      weight=1.0,  # init to 1
-                                                      periodic_boundary_edge=True
-                                                      )
-                                        break
-            if i_z == self.dimensions[2] - 1:
-                for j in self.nodes():
-                    if i < j:
-                        if self.nodes[j]["position"][0] == i_x:
-                            if self.nodes[j]["position"][1] == i_y:
-                                if self.nodes[j]["position"][2] == i_z:
-                                    if (i, j) not in self.edges():
-                                        self.add_edge(i, j,
-                                                      weight=1.0,  # init to 1
-                                                      periodic_boundary_edge=True
-                                                      )
-                                        break
+        if edges == None:
+            return None
+        else:
+            for e in edges:
+                i = e[0]
+                j = e[1]
+                self.add_edge(
+                    i,
+                    j,
+                    weight=edges[e]["weight"],
+                    periodic_boundary_edge=edges[e]["periodic_boundary_edge"]
+                )
+            return None
 
+
+    
     def plot(self) -> None:
         """A Matplotlib figure is rendered.
         """
