@@ -1,5 +1,9 @@
 
 
+# ignore any 'scratch' work
+*scratch*
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
