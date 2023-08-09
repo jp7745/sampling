@@ -2,6 +2,7 @@
 
 # ignore any 'scratch' work
 *scratch*
+/archive/*
 
 
 

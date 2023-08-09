@@ -18,28 +18,23 @@
 #
 
 
-
-
-
-
-
-
-
-
-
-
-
-# import json
-# import uuid
-
-
-import os 
-
-print(os.getcwd())
+# add some relative paths so we can import sampling.py module.
+import sys
+sys.path.append("../")
+sys.path.append("../src")
+sys.path.append("./src")
+sys_path = sys.path
 
 import sampling
 
-print("hello!")
 
+G = sampling.Graph()
+
+# TODO: work in progress.
+#
+#
+
+
+print("done")
 
 

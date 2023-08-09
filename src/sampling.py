@@ -410,7 +410,7 @@ class Graph(nx.Graph):
             J (dict): _description_
         """
         if len(self.edges()) == 0:
-            print("warning! no edges in the graph!")
+            raise Exception("Error: no edges in the graph!")
         for e in self.edges():
             i = e[0]
             j = e[1]
@@ -444,6 +444,67 @@ class Graph(nx.Graph):
                 self.nodes[i]["spin"]*self.nodes[j]["spin"]
         return energy_sum
 
+    def mcmc_sample_v1(self,
+            num_steps: int,
+            beta: float,
+            rng_seed: int=None,
+            print_status: bool=None
+        ) -> np.ndarray :
+        """
+        TODO
+        """
+        
+        if rng_seed is not None:
+            raise Exception("Error: fixed RNG seed not implemented!")
+
+        
+        n = len(self.nodes())
+        i = 0
+        for step in range(num_steps):
+            self.mcmc_mh_step(
+                beta=beta,
+                target_spin=i
+            )
+            i = i % n
+
+            if print_status:
+                if step % 50 == 0:
+                    print("step:",step,"/",num_steps)
+        
+        return self.energy(), self.get_spins()
+
+
+
+    def mcmc_mh_step(self,
+            beta: float,
+            target_spin: int=None,
+            uniform_random_number: float=None,
+        ) -> float :
+        """
+        TODO
+        """
+
+        if uniform_random_number is None:
+            uniform_random_number = np.random.random()
+
+        current_energy = self.energy()
+        self.nodes[target_spin]["spin"] *= -1 # flip sign
+        proposed_energy = self.energy()
+
+        if proposed_energy < (current_energy - 1e-9):
+            # accept proposed state because it is lower energy.
+            current_energy = proposed_energy
+        else:
+            threshold = np.exp(-beta*(proposed_energy - current_energy))
+            if uniform_random_number < threshold:
+                # accept proposed state even though it is higher energy
+                current_energy = proposed_energy
+            else:
+                # do NOT accept proposed state
+                # keep E_current set as is (no update)
+                self.nodes[target_spin]["spin"] *= -1 # revert to keep the "current" state                
+
+        return current_energy, self.get_spins()       
 
 
 
