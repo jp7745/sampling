@@ -3,7 +3,7 @@
 # ignore any 'scratch' work
 *scratch*
 /archive/*
-
+/.vscode/*
 
 
 # Byte-compiled / optimized / DLL files
