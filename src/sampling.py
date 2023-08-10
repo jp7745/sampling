@@ -366,6 +366,16 @@ class Graph(nx.Graph):
         fig.tight_layout()
         plt.show()
 
+    def get_adjacency_matrix_with_zero_diagonal_as_numpy_matrix(self) -> np.ndarray:
+        """_summary_
+
+        Returns:
+            np.ndarray: _description_
+        """
+        adj_matrix = nx.to_numpy_matrix(self)
+        external_field_B = np.array([ self.nodes[i]["B"] for i in range(len(self.nodes()))])
+        
+        return adj_matrix, external_field_B
 
     def set_spins(self, spin_config: np.ndarray) -> None:
         """_summary_

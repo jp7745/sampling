@@ -13,10 +13,11 @@ The following Jupyter Notebooks demonstrate usage:
 * `01_introduction.ipynb` demonstrates how to create the graph for our Ising Model.  Warning: right now the code is limited to *automatically* initializing square grid edges with periodic boundaries.  With some effort, the user can input custom topologies (e.g., triangular or other lattices.)
 * `02_brute_force_probability_distribution_calculation.ipynb` explicitly calculates the partition function and the probability distribution function for our model.  Warning:  don't try this for graphs with number of nodes $n > 20$.
 * `03_constructing_starting_sample_for_mcmc.ipynb` demonstrates a greedy randomized method to construct a starting sample for our Monte Carlo Markov Chain (MCMC).  The process is greedy because it incrementally sets the spin for each node, probabilistically favoring lower energy configurations.
-* `04_mcmc.ipynb` shows running a MCMC with the Metropolis-Hastings proposal/acceptance method with random starting states.  We compare the resulting empirical probability distribution function (PDF) to the true PDF calculated in `02_brute_force_probability_distribution_calculation.ipynb`.  This notebook generates the `mcmc_samples.csv` file.
-* `04a_low_temp_mcmc_random_starts.ipynb` is similar to the previous notebook, but uses a low temperature $T=0.5$ value.
-* `04b_low_temp_mcmc_greedy_random_starts.ipynb` is similar to the previous notebook, but uses a low temperature $T=0.5$ value and uses the greedy randomized state construction method to generate starting states for the MCMC.  Converge is visually inspected and compared to the random start method.
+* `04_mcmc.ipynb` shows running a MCMC with the Metropolis-Hastings proposal/acceptance method with random starting states.  We compare the resulting empirical probability distribution function (PDF) to the true PDF calculated in `02_brute_force_probability_distribution_calculation.ipynb`.
 * `05_verification_of_samples.ipynb` is not implemented yet, but will use the procedure from https://github.com/lanl-ansi/GraphicalModelLearning.jl to reverse engineer the parameters of the underlying Ising model from samples generated from `04_mcmc.ipynb`.
+* `06a_example_benchmark_performer_workflow.ipynb` shows the process of running the benchmark as a performer.
+* `06b_example_benchmark_performer_workflow.ipynb` shows the process of running the benchmark as a proctor.  This notebook is implemented in Julia and uses the `GraphicalModelLearning.jl` package to verify samples are coming from the true underlying distribution.  WORK IN PROGRESS!
+
 
 
 

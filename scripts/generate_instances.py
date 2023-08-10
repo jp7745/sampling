@@ -31,8 +31,16 @@ import sampling
 G = sampling.Graph()
 
 # TODO: work in progress.
-#
-#
+# n = number of nodes
+# periodic lattice or free form glass graph
+# other shape lattices
+# 2D lattices
+# 3D lattices
+# edge weights:  ferromagnetic (computationally easy, but interesting), antiferromagnetic, glassy
+# vary temperature parameter for each
+# external field (none, all the same, all positive but variable, glassy)
+
+# TODO: consider incorporating k_B and T into the sampling.Graph class.
 
 
 print("done")
