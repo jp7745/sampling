@@ -1,22 +1,16 @@
 
+
+# WARNING!  WORK IN PROGRESS!
+
 # Sampling
 
 This work describes an example of generating Samples of state configurations from a 3D square-grid Ising Model.  This is a proposed benchmark in development for the DARPA Quantum Benchmarking program.  
 
 *BEWARE:  This effort is in progress and many bugs and TODO's remain!*
 
-License is TBD.  
-
 The primary classes and routines used are in the `sampling.py` module.
 
-The following Jupyter Notebooks demonstrate usage:
-* `01_introduction.ipynb` demonstrates how to create the graph for our Ising Model.  Warning: right now the code is limited to *automatically* initializing square grid edges with periodic boundaries.  With some effort, the user can input custom topologies (e.g., triangular or other lattices.)
-* `02_brute_force_probability_distribution_calculation.ipynb` explicitly calculates the partition function and the probability distribution function for our model.  Warning:  don't try this for graphs with number of nodes $n > 20$.
-* `03_constructing_starting_sample_for_mcmc.ipynb` demonstrates a greedy randomized method to construct a starting sample for our Monte Carlo Markov Chain (MCMC).  The process is greedy because it incrementally sets the spin for each node, probabilistically favoring lower energy configurations.
-* `04_mcmc.ipynb` shows running a MCMC with the Metropolis-Hastings proposal/acceptance method with random starting states.  We compare the resulting empirical probability distribution function (PDF) to the true PDF calculated in `02_brute_force_probability_distribution_calculation.ipynb`.
-* `05_verification_of_samples.ipynb` is not implemented yet, but will use the procedure from https://github.com/lanl-ansi/GraphicalModelLearning.jl to reverse engineer the parameters of the underlying Ising model from samples generated from `04_mcmc.ipynb`.
-* `06a_example_benchmark_performer_workflow.ipynb` shows the process of running the benchmark as a performer.
-* `06b_example_benchmark_performer_workflow.ipynb` shows the process of running the benchmark as a proctor.  This notebook is implemented in Julia and uses the `GraphicalModelLearning.jl` package to verify samples are coming from the true underlying distribution.  WORK IN PROGRESS!
+The Jupyter Notebooks in the `examples` folder demonstrate usage and workflow(s).
 
 
 
@@ -60,12 +54,4 @@ While there seem to be a variety of diagnostics that tell you if your MCMC has *
 We intend to use the method in https://github.com/lanl-ansi/GraphicalModelLearning.jl to reverse engineer the properties of the original Ising Model (edge interaction strength, external field, etc.).  At low system $T$ temperatures, the interaction strength between nodes in the system is very strong and the number of samples required to estimate the parameters grows exponentially with the maximum interaction strength (See https://doi.org/10.1088/1742-5468/ac3aea).  
 
 We propose to reconcile this as follows.  The benchmark performer will be required to produce a sufficient number of samples at higher temperatures so that verification can be performed.  The benchmark performer will also be required to produce samples from the system at lower temperatures using the same algorithm/hardware, but these will not be verified.
-
-### Greedy Randomized Construction of Samples (starting samples for MCMC)
-
-This was a side quest.  I was curious to see the benefit of *constructing* a state using a greedy, randomized procedure.  The construction procedure is "greedy" as it sets the spin state of each node one at a time while probabilistically favoring spins that produce a lower system energy.  The empirical distribution of samples constructed using this method starts to resemble the true PDF, but it's different enough to not immediately accept the constructed samples as is.  I didn't have much hope for this working since, if it did, it would have large implications for the polynomial hierarchy.  But I was curious how similar the distribution of states produced by construction was to the real PDF anyway.  
-
-Theoretically any spin configuration is a feasible state in our MCMC and may eventually be visited.  So we should be able to start our MCMC in any random state--even high-energy states--and it will converge to its stationary distribution.  But then I was also curious to see if staring the MCMC/M-H procedure with a greedy, randomized constructed state would show an lower mixing time.  At higher system temperatures it didn't seem to help much.  At low system temperatures, it appeared to help with convergence per visual inspection of the plot of system energy per step of the MCMC.  As predicted, either way, the MCMC/M-H still gets "stuck" in certain deadlocked spin configurations at low temperatures.  The impatient user will never see the MCMC converge.  
-
-
 

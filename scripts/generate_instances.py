@@ -40,8 +40,6 @@ G = sampling.Graph()
 # vary temperature parameter for each
 # external field (none, all the same, all positive but variable, glassy)
 
-# TODO: consider incorporating k_B and T into the sampling.Graph class.
-
 
 print("done")
 

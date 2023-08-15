@@ -18,7 +18,7 @@
 #
 
 import uuid
-
+import json
 
 import numpy as np
 import networkx as nx
@@ -87,7 +87,7 @@ def convert_state_index_to_spin_config(n: int, state_index: int) -> np.ndarray:
     """
     spin_config = np.zeros(n)
     for i in range(n):
-        spin_config[i] = 1 - 2*bool(state_index & (0x1<<i))
+        spin_config[i] = -1.0 + 2*bool(state_index & (0x1<<i))
     return spin_config
 
 
@@ -103,6 +103,35 @@ def generate_random_spin_config(n: int) -> np.ndarray:
     return 2*(np.random.random(n) > 0.5*np.ones(n)) - np.ones(n)
 
 
+
+def load_graph_instance_from_file(filename: str=None):
+    """_summary_
+
+    Args:
+        filename (str, optional): _description_. Defaults to None.
+
+    Returns:
+        Graph: a sampling.Graph object.
+    """
+    with open(filename,"rb") as f:
+        read_bytes = f.read()
+        f.close()
+
+    # convert the byte array to a dict
+    instance = json.loads(read_bytes)
+    
+    G_nx = nx.node_link_graph(instance["graph_data"])
+    G = Graph(G_nx)
+    
+    G.name = instance["metadata"]["graph_name"]
+    G.uuid = instance["metadata"]["graph_uuid"]
+    G.temperature_T = instance["metadata"]["temperature_T"]
+    G.k_B = instance["metadata"]["k_B"]
+    
+    G.synchronize_attributes()
+    
+    return G
+    
 
 
 
@@ -283,61 +312,119 @@ class Graph(nx.Graph):
         """
         # initialize an empty NetworkX graph:
         super(Graph, self).__init__(nx_graph)
-        self.load_nodes(nodes)
-        self.load_edges(edges)
+        
         self.name = name
+        self.temperature_T = None
+        self.k_B = None
+        
         if user_defined_uuid is None:
             self.uuid = str(uuid.uuid4())
         else:
             self.uuid = user_defined_uuid
 
+        # after other parameters are updated, 
+        # the following may be updated by calling the .synchronize_attributes() method.
+        self._has_external_field = None
+        self._consistent_external_field = None
+        self._edge_type = None # antiferromagnetic, ferromagnetic, spin-glass
+        self._consistent_edge_weights = None
+        self._beta = None
+        self._has_periodic_boundary_edges = None
+
+        # _exact_probability_distribution is updated by calling the
+        # .brute_force_probability_distribution_calculation() method.
+        self._exact_probability_distribution = None
+
+        if nodes is not None:
+            self.load_nodes(nodes)
+        if edges is not None:
+            self.load_edges(edges)
+        
 
 
-    def load_nodes(self, nodes: dict=None) -> None:
+        
+
+
+    def load_nodes(self, nodes: dict=None):
         """_summary_
 
         Args:
             nodes (dict, optional): _description_. Defaults to None.
 
-        Returns:
-            _type_: _description_
         """
-        if nodes == None:
-            return None
-        else:
-            for i in nodes:
-                self.add_node(
-                    i,
-                    position=nodes[i]["position"],
-                    spin=nodes[i]["spin"],
-                    B=nodes[i]["B"]
-                )
-            return None
+        for i in nodes:
+            self.add_node(
+                i,
+                position=nodes[i]["position"],
+                spin=nodes[i]["spin"],
+                B=nodes[i]["B"]
+            )
+        self.synchronize_attributes()
 
 
-    def load_edges(self, edges: dict=None) -> None:
+    def load_edges(self, edges: dict=None):
+        """
+        xxxxxxxxxx
+        """
+
+        for e in edges:
+            i = e[0]
+            j = e[1]
+            self.add_edge(
+                i,
+                j,
+                weight=edges[e]["weight"],
+                periodic_boundary_edge=edges[e]["periodic_boundary_edge"]
+            )
+        self.synchronize_attributes()
+
+    def write_instance_to_file(self,
+            relative_path: str=None,
+            instance_uuid: str=None,
+            filename: str=None,
+        ):
         """_summary_
 
         Args:
-            edges (dict, optional): _description_. Defaults to None.
-
-        Returns:
-            _type_: _description_
+            relative_path (str, optional): _description_. Defaults to None.
+            instance_uuid (str, optional): _description_. Defaults to None.
+            filename (str, optional): _description_. Defaults to None.
         """
-        if edges == None:
-            return None
-        else:
-            for e in edges:
-                i = e[0]
-                j = e[1]
-                self.add_edge(
-                    i,
-                    j,
-                    weight=edges[e]["weight"],
-                    periodic_boundary_edge=edges[e]["periodic_boundary_edge"]
-                )
-            return None
+        self.synchronize_attributes()
 
+        if instance_uuid is None:
+            instance_uuid = str(uuid.uuid4())
+
+        # we made the conscious decision to preserve and use the data structure
+        # provided/read by the NetworkX.node_link_data() function.
+        # other attributes appear in the metadata dictionary.
+        # specifically exporting a graph using the .node_link_data() function
+        # does NOT include .temperature_T and ._beta and some other attributes.
+        graph_data = nx.node_link_data(self)
+
+        benchmark_requirements = {
+            "num_samples_k":1000,
+            "time_limit_seconds":600
+            }
+        metadata = self.get_summary_details()
+        metadata["instance_uuid"] = instance_uuid
+
+        aggregated_dictionary = {
+            "benchmark_requirements":benchmark_requirements,
+            "metadata":metadata,
+            "graph_data":graph_data
+        }
+
+        # write the dict as JSON to a file
+        if filename is None:
+            full_filename = relative_path + "/instance." + instance_uuid + ".json"
+        else:
+            full_filename = relative_path + "/" + filename
+        
+        output_bytes = json.dumps(aggregated_dictionary).encode("utf8")
+        with open(full_filename,"wb") as f:
+            f.write(output_bytes)
+            f.close()
 
     
     def plot(self) -> None:
@@ -377,7 +464,119 @@ class Graph(nx.Graph):
         
         return adj_matrix, external_field_B
 
-    def set_spins(self, spin_config: np.ndarray) -> None:
+    def brute_force_probability_distribution_calculation(self):
+        """Calculates (or updates) Graph._exact_probability_distribution in place.
+        TODO
+        """
+        self.synchronize_attributes()
+
+        n = len(self.nodes())
+        N = 2**n
+        self._exact_probability_distribution = np.zeros(N)
+        for state_index in range(N):
+            spin_config = convert_state_index_to_spin_config(n,state_index)
+            self.set_spins(spin_config)
+            E_state = self.get_energy()
+            self._exact_probability_distribution[state_index] = np.exp(-1.0*self._beta*E_state)
+            
+        Z = sum(self._exact_probability_distribution) # calculate partition function
+        self._exact_probability_distribution *= (1/Z) # normalize by partition function
+    
+
+    def synchronize_attributes(self):
+        """
+        This method updates and synchronizes all attributes of the sampling.Graph object
+        that the user should not directly modify such as ._beta, ._edge_type.
+
+        This method is typically called before/after a sampling.Graph object is 
+        written/read from a file.
+
+        This method should be called manually if a user edits any attributes.
+        """
+        if (self.temperature_T is not None) and (self.k_B is not None):
+            self._beta = 1/(self.temperature_T*self.k_B)
+        else:
+            self._beta = None
+        
+        self._has_external_field = False
+        for i in self.nodes():
+            if np.abs(self.nodes[i]["B"]) > 1e-12:
+                self._has_external_field = True
+                break
+        
+        if len(self.nodes()) > 0:
+            self._consistent_external_field = True
+            val = self.nodes[0]["B"]
+            for i in self.nodes():
+                if np.abs(self.nodes[i]["B"] - val) > 1e-12:
+                    self._consistent_external_field = False
+                    break
+        
+        if len(self.edges()) > 0:
+            self._consistent_edge_weights = True
+            edge_1 = list(self.edges())[0]
+            for edge_2 in self.edges():
+                if edge_1 != edge_2:
+                    w1 = self.edges[edge_1]["weight"]
+                    w2 = self.edges[edge_2]["weight"]
+                    if np.abs(w1 - w2) > 1e-12:
+                        self._consistent_edge_weights = False
+                        break
+        
+        self._has_periodic_boundary_edges = False
+        for edge in self.edges():
+            if self.edges[edge]["periodic_boundary_edge"]:
+                self._has_periodic_boundary_edges = True
+
+
+        # determine ._edge_type \in {ferromagnetic, antiferromagnetic, spin-glass}
+        all_positive_weights = True
+        for edge in self.edges():
+            if self.edges[edge]["weight"] < -1e-12: 
+                all_positive_weights = False
+                break
+        all_negative_weights = True
+        for edge in self.edges():
+            if self.edges[edge]["weight"] > 1e-12:
+                all_negative_weights = False
+        if all_positive_weights:
+            self._edge_type = "ferromagnetic"
+        if all_negative_weights:
+            self._edge_type = "antiferromagnetic"
+        if (not all_positive_weights) and (not all_negative_weights):
+            self._edge_type = "spin-glass"
+
+    def get_summary_details(self) -> dict:
+        """
+        Returns a dictionary of metadata about a sampling.Graph object.
+        """
+        self.synchronize_attributes()
+        metadata = {}
+        metadata["graph_name"] = self.name
+        metadata["graph_uuid"] = self.uuid
+        metadata["number_of_nodes"] = len(self.nodes())
+        metadata["number_of_edges"] = len(self.edges())
+        metadata["temperature_T"] = self.temperature_T
+        metadata["k_B"] = self.k_B
+        metadata["beta"] = self._beta
+        metadata["edge_type"] = self._edge_type
+        metadata["consistent_edge_weights"] = self._consistent_edge_weights
+        if self._consistent_edge_weights:
+            e = list(self.edges())[0]            
+            metadata["edge_weight"] = self.edges[e]["weight"]
+        else:
+            metadata["edge_weight"] = "varies"
+        metadata["has_periodic_boundary_edges"] = self._has_periodic_boundary_edges
+        metadata["has_nonzero_external_field"] = self._has_external_field
+        metadata["consistent_external_field"] = self._consistent_external_field
+        if self._consistent_external_field:
+            i = list(self.nodes())[0]
+            metadata["external_field"] = self.nodes[i]["B"]
+        else:
+            metadata["external_field"] = "varies"
+        return metadata
+
+    def set_spins(self, spin_config: np.ndarray):
         """_summary_
 
         Args:
@@ -395,7 +594,7 @@ class Graph(nx.Graph):
         return np.array([self.nodes[i]["spin"] for i in self.nodes()])
         
 
-    def set_external_field(self, B: np.ndarray) -> None:
+    def set_external_field(self, B: np.ndarray):
         """_summary_
 
         Args:
@@ -413,7 +612,7 @@ class Graph(nx.Graph):
         return np.array([self.nodes[i]["B"] for i in self.nodes()])
 
 
-    def set_couplings(self, J: dict) -> None:
+    def set_couplings(self, J: dict):
         """_summary_
 
         Args:
@@ -434,11 +633,15 @@ class Graph(nx.Graph):
         """
         return {e:self.edges[e]["weight"] for e in self.edges()}
 
-    def energy(self) -> float :
+    def get_energy(self) -> float :
         """$H(\sigma) = - \sum_{i~j} J_{ij} \sigma_i \sigma_j - \sum_i B_i \sigma_i$
         Note that we are going with the classic definition with the minus signs.
 
         Note that we allow spin for each node to be +1, -1, but in our "constructing" starting spin_configs we allow spin to be 0 for unset nodes.
+
+        J_ij > 0 implies ferromagnetic: neighbors prefer to be the same spin.
+
+        J_ij < 0 implies antiferromagnetic: neighbors prefer to be opposite spins.
 
         Returns:
             float: The energy of the system as a real number.
@@ -454,14 +657,18 @@ class Graph(nx.Graph):
                 self.nodes[i]["spin"]*self.nodes[j]["spin"]
         return energy_sum
 
-    def mcmc_sample_v1(self,
+    def generate_mcmc_sample_v1(self,
             num_steps: int,
-            beta: float,
             rng_seed: int=None,
             print_status: bool=None
         ) -> np.ndarray :
         """
-        TODO
+        This will generate a MCMC sample from the graph.  
+        The Markov chain will start at whatever state the current spin config is.
+        
+        In addition to returning the energy and spin configuration of the sample, 
+        the spin configuration of the graph will be updated in place and can be read later.
+
         """
         
         if rng_seed is not None:
@@ -471,22 +678,21 @@ class Graph(nx.Graph):
         n = len(self.nodes())
         i = 0
         for step in range(num_steps):
-            self.mcmc_mh_step(
-                beta=beta,
+            self.generate_mcmc_mh_step(
                 target_spin=i
             )
+            i += 1
             i = i % n
 
             if print_status:
                 if step % 50 == 0:
                     print("step:",step,"/",num_steps)
         
-        return self.energy(), self.get_spins()
+        return self.get_energy(), self.get_spins()
 
 
 
-    def mcmc_mh_step(self,
-            beta: float,
+    def generate_mcmc_mh_step(self,
             target_spin: int=None,
             uniform_random_number: float=None,
         ) -> float :
@@ -497,15 +703,15 @@ class Graph(nx.Graph):
         if uniform_random_number is None:
             uniform_random_number = np.random.random()
 
-        current_energy = self.energy()
+        current_energy = self.get_energy()
         self.nodes[target_spin]["spin"] *= -1 # flip sign
-        proposed_energy = self.energy()
+        proposed_energy = self.get_energy()
 
         if proposed_energy < (current_energy - 1e-9):
             # accept proposed state because it is lower energy.
             current_energy = proposed_energy
         else:
-            threshold = np.exp(-beta*(proposed_energy - current_energy))
+            threshold = np.exp(-1.0*self._beta*(proposed_energy - current_energy))
             if uniform_random_number < threshold:
                 # accept proposed state even though it is higher energy
                 current_energy = proposed_energy
@@ -544,14 +750,12 @@ def is_complete_spin_config(spin_config: np.ndarray) -> bool:
 
 def generate_randomized_greedy_spin_config(
         G: Graph=None,
-        beta: float=None,
         plot_progress: bool=False
     ) -> np.ndarray:
     """_summary_
 
     Args:
         G (sampling.Graph, optional): _description_. Defaults to None.
-        beta (float, optional): _description_. Defaults to None.
         plot_progress (bool, optional): _description_. Defaults to False.
 
     Returns:
@@ -567,7 +771,7 @@ def generate_randomized_greedy_spin_config(
     if plot_progress:
         G.plot()
         print("spin config:",G.get_spins())
-        print("Energy:",G.energy())
+        print("Energy:",G.get_energy())
 
     while not is_complete_spin_config(spin_config):
         
@@ -591,12 +795,12 @@ def generate_randomized_greedy_spin_config(
         candidate_spin_config_up[j] = 1.0
 
         G.set_spins(candidate_spin_config_down)
-        E_candidate_down = G.energy()
-        e_down = np.exp(-1.0*beta*E_candidate_down)
+        E_candidate_down = G.get_energy()
+        e_down = np.exp(-1.0*G._beta*E_candidate_down)
 
         G.set_spins(candidate_spin_config_up)
-        E_candidate_up = G.energy()
-        e_up = np.exp(-1.0*beta*E_candidate_up)
+        E_candidate_up = G.get_energy()
+        e_up = np.exp(-1.0*G._beta*E_candidate_up)
 
         prob_down = e_down / (e_down + e_up)
 
@@ -611,7 +815,7 @@ def generate_randomized_greedy_spin_config(
         if plot_progress:
             G.plot()
             print("spin config:",G.get_spins())
-            print("Energy:",G.energy())
+            print("Energy:",G.get_energy())
         
 
 
