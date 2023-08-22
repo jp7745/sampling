@@ -56,7 +56,7 @@ println("Current working directory: ", pwd())
 
 benchmark_instances_relative_path = "../benchmark_instances/"
 benchmark_performer_submissions_relative_path = "../benchmark_performer_submissions/"
-benchmark_performance_metrics_relative_path = "../benchmark_performance_metrics/"
+benchmark_performance_metrics_relative_path = "../benchmark_proctor_performance_metrics/"
 
 println("instances relative path: ", benchmark_instances_relative_path)
 println("submissions/solutions relative path: ", benchmark_performer_submissions_relative_path)
