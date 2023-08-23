@@ -26,12 +26,13 @@ sys.path.append("./src")
 sys_path = sys.path
 
 import json
-
 import copy
-
 import os
-
 import csv
+
+
+################################################################################
+# This file creates /benchmark_instances/benchmark_instance_summary.csv
 
 
 

@@ -27,6 +27,8 @@ using SHA
 using Dates
 using UUIDs
 
+using JuMP
+using Ipopt
 
 using GraphicalModelLearning #GML
 
@@ -103,7 +105,7 @@ benchmark_instances_relative_path = "../benchmark_instances/";
 benchmark_performer_submissions_relative_path = "../benchmark_performer_submissions/";
 benchmark_performance_metrics_relative_path = "../benchmark_proctor_performance_metrics/";
 
-println("instances relative path: ", benchmark_instances_relative_path);
+println("\n\n\ninstances relative path: ", benchmark_instances_relative_path);
 println("submissions/solutions relative path: ", benchmark_performer_submissions_relative_path);
 println("performance metrics relative path: ", benchmark_performance_metrics_relative_path);
 
@@ -127,15 +129,13 @@ for performance_metric_file in performance_metrics_files
     processed_solution_dict = JSON.parsefile(fname)
     solution_uuid = processed_solution_dict["solution_uuid"]
     if (this_script_sha1sum != processed_solution_dict["processed_with_perf_calculator_hash"])
-        println("the file solution_uuid:$solution_uuid was already processed and the results are in $fname.  BUT the results in $fname were calculated with a different version of the performance calculator script.  The file $fname will be deleted.  The solution should be re-processed with the current version of the script.") #TODO: guarantee that we process it below!!
+        
+        println("solution_uuid:$solution_uuid was processed with a different version of the performance calculator script. The solution will be re-processed") #TODO: guarantee that we process it below!!
 
         rm(fname);
     else
-        if (processed_solution_dict["solution_uuid"] in processed_solution_uuids)
-            println("solution_uuid:$solution_uuid has already been processed. Skipping.");
-        else
-            push!(processed_solution_uuids, processed_solution_dict["solution_uuid"]);
-        end
+        
+        push!(processed_solution_uuids, solution_uuid);
     end
 end
     
@@ -160,8 +160,10 @@ for submission_file in submission_files
 
     solution = HDF5.h5read(fname, "solution");
     solution_uuid = solution["solution_uuid"];
-    if !(solution_uuid in processed_solution_uuids)
-        println("\n\nprocessing solution_uuid:$solution_uuid ... ");
+    if solution_uuid in processed_solution_uuids
+        println("\n\nsolution_uuid:$solution_uuid has already been processed. Skipping.");
+    else
+        println("\n\nsolution_uuid:$solution_uuid ... starting processing...");
 
         benchmark_instance_uuid = solution["instance_uuid"];
         performance_metrics_uuid = string(uuid4());
@@ -189,6 +191,7 @@ for submission_file in submission_files
             instance_data = JSON.parsefile(instance_fname)
             if benchmark_instance_uuid == instance_data["metadata"]["instance_uuid"]
                 located_corresponding_benchmark_instance = true;
+                println("corresponding instance file: $instance_fname")
                 break
             end
         end
@@ -232,8 +235,16 @@ for submission_file in submission_files
 
         # Use GraphicalModelLearning to estimate the parameters from the samples
         try
-            GML_method = GraphicalModelLearning.logRISE();
-            learned_adj_matrix = GraphicalModelLearning.learn(samples, GML_method);
+            GML_method = GraphicalModelLearning.RISE();
+            # NLP_method = GraphicalModelLearning.NLP()
+            # NLP_method = GraphicalModelLearning.NLP(optimizer_with_attributes(Ipopt.Optimizer, "print_level"=>5))
+            NLP_method = GraphicalModelLearning.NLP(JuMP.optimizer_with_attributes(Ipopt.Optimizer, "print_level"=>0, "tol"=>1e-6))
+            
+
+            println("starting GML method: $GML_method ...")
+            #println("using NLP_method: $NLP_method")
+            learned_adj_matrix = GraphicalModelLearning.learn(samples, GML_method, NLP_method);
+            println("done with GML method.")
             learned_external_field_B = [learned_adj_matrix[i,i] for i in 1:n];
 
             # vectorize all parameters J_ij, B_i to calculate differences
@@ -348,8 +359,12 @@ for submission_file in submission_files
         open(output_filename, "w") do io
             JSON.print(io, performance_metrics_dict);
         end
+        println("output filename: $output_filename")
     end
 end
 
-println("done");
+
+
+
+println("\n\nall done.");
 
