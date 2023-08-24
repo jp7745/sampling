@@ -427,7 +427,7 @@ class Graph(nx.Graph):
             f.close()
 
     
-    def plot(self) -> None:
+    def plot(self, show_node_lables: bool=False) -> None:
         """A Matplotlib figure is rendered.
         """
 
@@ -450,6 +450,11 @@ class Graph(nx.Graph):
         )
         for vizedge in edge_xyz:
             ax.plot(*vizedge.T, color="tab:gray")
+        
+        if show_node_lables:
+            for i in self.nodes():
+                pos_i = self.nodes[i]["position"]
+                ax.text(pos_i[0], pos_i[1], pos_i[2], str(i))
         fig.tight_layout()
         plt.show()
 
@@ -459,7 +464,7 @@ class Graph(nx.Graph):
         Returns:
             np.ndarray: _description_
         """
-        adj_matrix = nx.to_numpy_matrix(self)
+        adj_matrix = nx.to_numpy_array(self)
         external_field_B = np.array([ self.nodes[i]["B"] for i in range(len(self.nodes()))])
         
         return adj_matrix, external_field_B
