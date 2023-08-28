@@ -145,7 +145,7 @@ for filename in benchmark_instances:
             G.set_spins(spin_config)
 
             # run MCMC to generate one sample:
-            sample_energy, sample_config = G.generate_mcmc_sample_v1(num_steps=500)
+            sample_energy, sample_config = G.generate_mcmc_sample_v1(num_steps=500) # TODO: TRACK STEPS!
             
             final_state_index = sampling.convert_spin_config_to_state_index(sample_config)
 
