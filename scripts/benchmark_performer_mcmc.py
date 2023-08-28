@@ -145,7 +145,7 @@ for filename in benchmark_instances:
             G.set_spins(spin_config)
 
             # run MCMC to generate one sample:
-            sample_energy, sample_config = G.generate_mcmc_sample_v1(num_steps=500) # TODO: TRACK STEPS!
+            sample_energy, sample_config = G.generate_mcmc_sample_v1(num_steps=500)
             
             final_state_index = sampling.convert_spin_config_to_state_index(sample_config)
 
@@ -264,7 +264,7 @@ for filename in benchmark_instances:
                 "run_time":run_time, # as calculated above.
                 "compute_resources_used":None, # memory, CPU, etc.
                 "solution_reported":{
-                    "states_observed":states_observed, # TODO: convert these to integers
+                    "states_observed":states_observed, # TODO: convert these to integers for better storage. Reconcile format with GraphicalModelLearning.jl format.
                     "states_observed_counts":states_observed_counts, 
                 }
             },

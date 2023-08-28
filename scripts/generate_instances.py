@@ -30,7 +30,7 @@ import sampling
 
 G = sampling.Graph()
 
-# TODO: work in progress.
+# TODO: work in progress.  Currently instances are generated with a variety of other scripts.
 # n = number of nodes
 # periodic lattice or free form glass graph
 # other shape lattices
