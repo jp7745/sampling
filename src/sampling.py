@@ -42,8 +42,8 @@ def convert_index_to_coordinates(i: int, dimensions: np.ndarray) -> np.ndarray:
     remainder = i
     coords = np.zeros(len(dimensions))
     for d in range(len(dimensions)):
-        coords[d] = int(remainder // np.product(dimensions[d+1:]))
-        remainder = int(remainder % np.product(dimensions[d+1:]))
+        coords[d] = int(remainder // np.prod(dimensions[d+1:]))
+        remainder = int(remainder % np.prod(dimensions[d+1:]))
     return coords
 
 
@@ -65,7 +65,7 @@ def convert_coordinates_to_index(
     """
     i = 0
     for d in range(len(coords)):
-        i += coords[d]*np.product(dimensions[d+1:])
+        i += coords[d]*np.prod(dimensions[d+1:])
     return i
 
 
@@ -157,7 +157,7 @@ def init_square_grid_nodes(dimensions: list=None) -> dict:
         dict: A dictionary of the nodes and related parameters of the graph.
     """
     nodes = {}
-    n = np.product(dimensions)
+    n = np.prod(dimensions)
     for i in range(n):
         nodes[i] = {
             "position":list((convert_index_to_coordinates(i, dimensions))),
@@ -617,15 +617,20 @@ class Graph(nx.Graph):
             self._edge_type = "spin-glass"
         
         # update other features of the graph
-        self._min_edge_weight_magnitude = np.min([np.abs(self.edges[e]["weight"]) for e in self.edges()])
+        if len(self.edges()) > 0:
+            self._min_edge_weight_magnitude = np.min([np.abs(self.edges[e]["weight"]) for e in self.edges()])
 
-        self._max_edge_weight_magnitude = np.max([np.abs(self.edges[e]["weight"]) for e in self.edges()])
+        if len(self.edges()) > 0:
+            self._max_edge_weight_magnitude = np.max([np.abs(self.edges[e]["weight"]) for e in self.edges()])
 
-        self._effective_min_edge_weight_magnitude = self._beta*self._min_edge_weight_magnitude
+        if self._beta is not None and self._min_edge_weight_magnitude is not None:
+            self._effective_min_edge_weight_magnitude = self._beta*self._min_edge_weight_magnitude
 
-        self._effective_max_edge_weight_magnitude = self._beta*self._max_edge_weight_magnitude
+        if self._beta is not None and self._max_edge_weight_magnitude is not None:
+            self._effective_max_edge_weight_magnitude = self._beta*self._max_edge_weight_magnitude
 
-        self._max_degree = int(np.max([self.degree[i] for i in self.nodes()]))
+        if len(self.nodes()) > 0:
+            self._max_degree = int(np.max([self.degree[i] for i in self.nodes()]))
 
         self._average_node_connectivity = nx.average_node_connectivity(self)
         self._density = nx.density(self)
