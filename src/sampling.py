@@ -360,6 +360,14 @@ class Graph(nx.Graph):
         self._consistent_edge_weights = None
         self._beta = None
         self._has_periodic_boundary_edges = None
+        self._max_degree = None
+        self._min_edge_weight_magnitude = None
+        self._max_edge_weight_magnitude = None
+        self._effective_min_edge_weight_magnitude = None # factors in beta
+        self._effective_max_edge_weight_magnitude = None # factors in beta
+        self._average_node_connectivity = None
+        self._is_planar = None
+        self._density = None
 
         # _exact_probability_distribution is updated by calling the
         # .brute_force_probability_distribution_calculation() method.
@@ -448,8 +456,8 @@ class Graph(nx.Graph):
         graph_data = nx.node_link_data(self)
 
         benchmark_requirements = {
-            "num_samples_k":1000,
-            "time_limit_seconds":600
+            "num_samples_k":1000, # TODO:  fixed at this time.
+            "time_limit_seconds":600 # TODO:  fixed at this time.
             }
         metadata = self.get_summary_details()
         metadata["instance_uuid"] = instance_uuid
@@ -607,6 +615,24 @@ class Graph(nx.Graph):
             self._edge_type = "antiferromagnetic"
         if (not all_positive_weights) and (not all_negative_weights):
             self._edge_type = "spin-glass"
+        
+        # update other features of the graph
+        self._min_edge_weight_magnitude = np.min([np.abs(self.edges[e]["weight"]) for e in self.edges()])
+
+        self._max_edge_weight_magnitude = np.max([np.abs(self.edges[e]["weight"]) for e in self.edges()])
+
+        self._effective_min_edge_weight_magnitude = self._beta*self._min_edge_weight_magnitude
+
+        self._effective_max_edge_weight_magnitude = self._beta*self._max_edge_weight_magnitude
+
+        self._max_degree = int(np.max([self.degree[i] for i in self.nodes()]))
+
+        self._average_node_connectivity = nx.average_node_connectivity(self)
+        self._density = nx.density(self)
+        self._is_planar = nx.is_planar(self)
+
+
+
 
     def get_summary_details(self) -> dict:
         """Provides a dictionary of metadata 
@@ -640,6 +666,18 @@ class Graph(nx.Graph):
             metadata["external_field"] = self.nodes[i]["B"]
         else:
             metadata["external_field"] = "varies"
+        
+        metadata["max_degree"] = self._max_degree
+        metadata["min_edge_weight_magnitude"] = self._min_edge_weight_magnitude
+        metadata["max_edge_weight_magnitude"] = self._max_edge_weight_magnitude
+        metadata["effective_min_edge_weight_magnitude"] = self._effective_min_edge_weight_magnitude
+        metadata["effective_max_edge_weight_magnitude"] = self._effective_max_edge_weight_magnitude
+
+
+        metadata["average_node_connectivity"] = self._average_node_connectivity
+        metadata["is_planar"] = self._is_planar
+        metadata["density"] = self._density
+        
         return metadata
 
     def set_spins(self, spin_config: np.ndarray):

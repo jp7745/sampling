@@ -4,7 +4,6 @@
         "time_limit_seconds": 600
     },
     "metadata": {
-        "instance_uuid": "c7cc67fb-6976-4482-a9b6-8cabe4ad5621",
         "graph_name": "glass_20",
         "graph_uuid": "f0baa63b-240a-4742-849d-7c7744fcba59",
         "number_of_nodes": 20,
@@ -18,7 +17,16 @@
         "has_periodic_boundary_edges": false,
         "has_nonzero_external_field": false,
         "consistent_external_field": true,
-        "external_field": 0.0
+        "external_field": 0.0,
+        "max_degree": 6,
+        "min_edge_weight_magnitude": 0.1284184203169816,
+        "max_edge_weight_magnitude": 1.173750503883261,
+        "effective_min_edge_weight_magnitude": 0.042806140105660535,
+        "effective_max_edge_weight_magnitude": 0.39125016796108697,
+        "average_node_connectivity": 1.2526315789473683,
+        "is_planar": true,
+        "density": 0.1631578947368421,
+        "instance_uuid": "c7cc67fb-6976-4482-a9b6-8cabe4ad5621"
     },
     "graph_data": {
         "directed": false,
